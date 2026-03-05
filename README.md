@@ -18,24 +18,21 @@ A Python CLI for cutting/trimming media files with `ffmpeg`.
 ## Requirements
 
 - Python 3.8+
-- `ffmpeg` installed and available on `PATH`
+- Bundled FFmpeg binary at `tools/ffmpeg/ffmpeg.exe`
 
-## Install FFmpeg (Windows with Chocolatey)
+## FFmpeg Binary
 
-Open **PowerShell as Administrator**, then run:
+This project vendors FFmpeg at:
 
-```powershell
-choco install ffmpeg -y
+```text
+tools/ffmpeg/ffmpeg.exe
 ```
 
-Verify installation:
+CLI execution prefers this local binary first. You can override it with:
 
 ```powershell
-where ffmpeg
-ffmpeg -version
+$env:MEDIACUTTER_FFMPEG = "C:\path\to\ffmpeg.exe"
 ```
-
-If `ffmpeg` is not found right away, restart terminal and run `ffmpeg -version` again.
 
 ## Installation
 
@@ -83,6 +80,30 @@ Run the tests with:
 
 ```bash
 python -m pytest
+```
+
+## Build (Windows)
+
+`build.ps1` creates a standalone executable with PyInstaller and bundles `tools/ffmpeg/ffmpeg.exe`.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build.ps1
+```
+
+Output:
+
+```text
+dist\mediacutter.exe
+```
+
+Optional parameters:
+
+```powershell
+# custom exe name
+powershell -ExecutionPolicy Bypass -File .\build.ps1 -ExeName mediacutter-cli
+
+# custom virtualenv python path
+powershell -ExecutionPolicy Bypass -File .\build.ps1 -VenvPython .\.venv\Scripts\python.exe
 ```
 
 ## Contributing
