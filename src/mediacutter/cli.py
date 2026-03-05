@@ -11,6 +11,19 @@ from pathlib import Path
 import ffmpeg
 
 
+def is_lfs_pointer(path: Path) -> bool:
+    """Detect whether a file is a Git LFS pointer text file."""
+    try:
+        if path.stat().st_size > 1024:
+            return False
+        first_line = path.read_text(encoding="utf-8", errors="ignore").splitlines()[:1]
+        if not first_line:
+            return False
+        return first_line[0].strip() == "version https://git-lfs.github.com/spec/v1"
+    except OSError:
+        return False
+
+
 def format_seconds(seconds: float) -> str:
     """Format seconds as hh:mm:ss."""
     total = max(0, int(seconds))
@@ -123,11 +136,11 @@ def resolve_ffmpeg_binary() -> str:
     env_path = os.environ.get("MEDIACUTTER_FFMPEG")
     if env_path:
         candidate = Path(env_path).expanduser()
-        if candidate.exists():
+        if candidate.exists() and not is_lfs_pointer(candidate):
             return str(candidate)
 
     project_local = Path(__file__).resolve().parents[2] / "tools" / "ffmpeg" / "ffmpeg.exe"
-    if project_local.exists():
+    if project_local.exists() and not is_lfs_pointer(project_local):
         return str(project_local)
 
     ffmpeg_path = shutil.which("ffmpeg")
@@ -218,6 +231,8 @@ def run_ffmpeg_cut(
         if getattr(e, "stderr", None):
             stderr = e.stderr.decode(errors="ignore")
         raise RuntimeError(f"ffmpeg failed: {stderr or e}")
+    except OSError as e:
+        raise RuntimeError(f"ffmpeg failed to launch: {e}")
 
 
 def main(argv=None):

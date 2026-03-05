@@ -48,6 +48,17 @@ def test_build_output_kwargs_tv_compatible_mode():
     }
 
 
+def test_is_lfs_pointer_detection(tmp_path):
+    pointer = tmp_path / "ffmpeg.exe"
+    pointer.write_text(
+        "version https://git-lfs.github.com/spec/v1\n"
+        "oid sha256:deadbeef\n"
+        "size 99264000\n",
+        encoding="utf-8",
+    )
+    assert cli.is_lfs_pointer(pointer) is True
+
+
 def test_run_ffmpeg_cut(tmp_path):
     # ensure the ffmpeg-python wrapper is available
     pytest.importorskip("ffmpeg")
