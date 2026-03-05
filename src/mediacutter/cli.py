@@ -46,6 +46,14 @@ def parse_ffmpeg_out_time(out_time: str) -> float:
     return h * 3600 + m * 60 + s + fraction
 
 
+def parse_out_time_ms(value: str) -> float | None:
+    """Parse ffmpeg out_time_ms into seconds; return None for non-numeric values."""
+    try:
+        return max(0.0, int(value) / 1_000_000.0)
+    except (TypeError, ValueError):
+        return None
+
+
 def print_progress(processed: float, total: float, started_at: float) -> None:
     """Render a single-line terminal progress bar."""
     if total <= 0:
@@ -213,8 +221,9 @@ def run_ffmpeg_cut(
                     continue
                 key, value = line.split("=", 1)
                 if show_progress and key == "out_time_ms":
-                    processed = max(0.0, int(value) / 1_000_000.0)
-                    print_progress(processed, duration_seconds, started_at)
+                    processed = parse_out_time_ms(value)
+                    if processed is not None:
+                        print_progress(processed, duration_seconds, started_at)
                 elif show_progress and key == "progress" and value == "end":
                     print_progress(duration_seconds, duration_seconds, started_at)
 

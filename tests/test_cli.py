@@ -59,6 +59,12 @@ def test_is_lfs_pointer_detection(tmp_path):
     assert cli.is_lfs_pointer(pointer) is True
 
 
+def test_parse_out_time_ms_handles_na():
+    assert cli.parse_out_time_ms("N/A") is None
+    assert cli.parse_out_time_ms("") is None
+    assert cli.parse_out_time_ms("1230000") == 1.23
+
+
 def test_run_ffmpeg_cut(tmp_path):
     # ensure the ffmpeg-python wrapper is available
     pytest.importorskip("ffmpeg")
