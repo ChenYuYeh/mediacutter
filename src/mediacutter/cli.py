@@ -139,6 +139,20 @@ def resolve_ffmpeg_binary() -> str:
     )
 
 
+def build_output_kwargs(tv_compatible: bool) -> dict:
+    """Build ffmpeg output kwargs for default and TV-compatible modes."""
+    if not tv_compatible:
+        return {"c": "copy"}
+
+    # TV-friendly output: H.264 video + AAC audio in MP4 with faststart.
+    return {
+        "vcodec": "libx264",
+        "acodec": "aac",
+        "pix_fmt": "yuv420p",
+        "movflags": "+faststart",
+    }
+
+
 def run_ffmpeg_cut(
     input_file: Path, start: str, end: str, output_file: Path, tv_compatible: bool = False
 ) -> None:
@@ -149,12 +163,7 @@ def run_ffmpeg_cut(
     line.  Outputs are overwritten if they already exist.
     """
     ffmpeg_cmd = resolve_ffmpeg_binary()
-    output_kwargs = {"c": "copy"}
-    if tv_compatible:
-        output_kwargs = {
-            "c": "copy",
-            "movflags": "+faststart",
-        }
+    output_kwargs = build_output_kwargs(tv_compatible)
     try:
         duration_seconds = float(timecode_to_seconds(end) - timecode_to_seconds(start))
         process = (
