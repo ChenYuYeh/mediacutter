@@ -1,0 +1,5 @@
+# runtime dependencies
+ffmpeg-python
+
+# development dependencies
+pytest

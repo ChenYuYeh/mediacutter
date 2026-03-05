@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mediacutter"
+version = "0.1.0"
+description = "CLI tool to cut/trim media files (mp4/mkv)."
+requires-python = ">=3.8"
+authors = [ { name = "MediaCutter User", email = "media@example.com" } ]
+license = { text = "MIT" }
+readme = "README.md"
+keywords = ["media", "ffmpeg", "trim", "cut"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "ffmpeg-python",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+]
+
+[project.scripts]
+mediacutter = "mediacutter.cli:main"
