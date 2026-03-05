@@ -35,6 +35,19 @@ def test_seconds_to_timecode():
     assert cli.seconds_to_timecode(3723) == "01:02:03"
 
 
+def test_build_output_kwargs_default_mode():
+    assert cli.build_output_kwargs(False) == {"c": "copy"}
+
+
+def test_build_output_kwargs_tv_compatible_mode():
+    assert cli.build_output_kwargs(True) == {
+        "vcodec": "libx264",
+        "acodec": "aac",
+        "pix_fmt": "yuv420p",
+        "movflags": "+faststart",
+    }
+
+
 def test_run_ffmpeg_cut(tmp_path):
     # ensure the ffmpeg-python wrapper is available
     pytest.importorskip("ffmpeg")
