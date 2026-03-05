@@ -85,6 +85,10 @@ Run the tests with:
 python -m pytest
 ```
 
+## Contributing
+
+Use feature branches and open pull requests against `main`.
+
 ## License
 
 MIT
