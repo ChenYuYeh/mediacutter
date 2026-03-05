@@ -5,29 +5,18 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-function Resolve-FfmpegPath {
-    $chocoFull = "C:\ProgramData\chocolatey\lib\ffmpeg\tools\ffmpeg\bin\ffmpeg.exe"
-    if (Test-Path $chocoFull) {
-        return $chocoFull
-    }
-
-    $cmd = Get-Command ffmpeg -ErrorAction SilentlyContinue
-    if (-not $cmd) {
-        throw "ffmpeg.exe not found. Install FFmpeg or add it to PATH."
-    }
-
-    $candidate = $cmd.Source
-    if (-not (Test-Path $candidate)) {
-        throw "Resolved ffmpeg path does not exist: $candidate"
-    }
-    return $candidate
-}
+$projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ffmpegPath = Join-Path $projectRoot "tools\ffmpeg\ffmpeg.exe"
+$entryScript = Join-Path $projectRoot "src\mediacutter\cli.py"
 
 if (-not (Test-Path $VenvPython)) {
     throw "Python executable not found at '$VenvPython'. Create the virtual environment first."
 }
 
-$ffmpegPath = Resolve-FfmpegPath
+if (-not (Test-Path $ffmpegPath)) {
+    throw "Bundled ffmpeg not found at '$ffmpegPath'."
+}
+
 Write-Host "Using FFmpeg: $ffmpegPath"
 
 & $VenvPython -m pip install --upgrade pyinstaller | Out-Null
@@ -36,6 +25,6 @@ Write-Host "Using FFmpeg: $ffmpegPath"
     --onefile `
     --name $ExeName `
     --add-binary "${ffmpegPath};." `
-    "src\mediacutter\cli.py"
+    "$entryScript"
 
 Write-Host "Build complete: dist\$ExeName.exe"

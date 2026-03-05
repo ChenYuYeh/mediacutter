@@ -1,4 +1,5 @@
 import argparse
+import os
 import re
 import shutil
 import threading
@@ -36,8 +37,14 @@ def print_progress(processed: float, total: float, started_at: float) -> None:
     """Render a single-line terminal progress bar."""
     if total <= 0:
         return
+
+    columns = shutil.get_terminal_size(fallback=(80, 20)).columns
     ratio = min(max(processed / total, 0.0), 1.0)
     width = 28
+    # Keep output within terminal width to avoid visual wrapping artifacts.
+    static_len = len("[] 100.0% elapsed 00:00:00 eta 00:00:00")
+    if columns > static_len + 2:
+        width = max(10, min(40, columns - static_len))
     filled = int(width * ratio)
     bar = "=" * filled + "-" * (width - filled)
     elapsed = time.time() - started_at
@@ -45,10 +52,18 @@ def print_progress(processed: float, total: float, started_at: float) -> None:
     if processed > 0:
         eta = (elapsed / processed) * max(0.0, total - processed)
     message = (
-        f"\r[{bar}] {ratio * 100:5.1f}% "
+        f"[{bar}] {ratio * 100:5.1f}% "
         f"elapsed {format_seconds(elapsed)} eta {format_seconds(eta)}"
     )
-    print(message, end="", flush=True)
+
+    line = message
+    if columns > 1:
+        line = message[: columns - 1]
+
+    # Fully clear current line then repaint to avoid wrapped/trailing artifacts.
+    sys.stdout.write("\r\x1b[2K")
+    sys.stdout.write(line)
+    sys.stdout.flush()
 
 
 def parse_timecode(tc: str) -> str:
@@ -94,7 +109,7 @@ def build_output_name_with_index(input_path: Path, start: str, end: str, index: 
 
 
 def resolve_ffmpeg_binary() -> str:
-    """Resolve ffmpeg path, preferring bundled binary in frozen builds."""
+    """Resolve ffmpeg path with bundled and project-local fallbacks."""
     if getattr(sys, "frozen", False):
         meipass = getattr(sys, "_MEIPASS", None)
         if meipass:
@@ -104,10 +119,24 @@ def resolve_ffmpeg_binary() -> str:
         adjacent = Path(sys.executable).with_name("ffmpeg.exe")
         if adjacent.exists():
             return str(adjacent)
+
+    env_path = os.environ.get("MEDIACUTTER_FFMPEG")
+    if env_path:
+        candidate = Path(env_path).expanduser()
+        if candidate.exists():
+            return str(candidate)
+
+    project_local = Path(__file__).resolve().parents[2] / "tools" / "ffmpeg" / "ffmpeg.exe"
+    if project_local.exists():
+        return str(project_local)
+
     ffmpeg_path = shutil.which("ffmpeg")
     if ffmpeg_path:
         return ffmpeg_path
-    raise RuntimeError("ffmpeg binary was not found on PATH")
+
+    raise RuntimeError(
+        "ffmpeg binary was not found. Expected tools/ffmpeg/ffmpeg.exe or ffmpeg on PATH."
+    )
 
 
 def run_ffmpeg_cut(
@@ -163,9 +192,6 @@ def run_ffmpeg_cut(
                 key, value = line.split("=", 1)
                 if show_progress and key == "out_time_ms":
                     processed = max(0.0, int(value) / 1_000_000.0)
-                    print_progress(processed, duration_seconds, started_at)
-                elif show_progress and key == "out_time":
-                    processed = parse_ffmpeg_out_time(value)
                     print_progress(processed, duration_seconds, started_at)
                 elif show_progress and key == "progress" and value == "end":
                     print_progress(duration_seconds, duration_seconds, started_at)
