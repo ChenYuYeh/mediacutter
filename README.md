@@ -34,6 +34,16 @@ CLI execution prefers this local binary first. You can override it with:
 $env:MEDIACUTTER_FFMPEG = "C:\path\to\ffmpeg.exe"
 ```
 
+## FFmpeg License Notice
+
+This repository includes a third-party FFmpeg executable at `tools/ffmpeg/ffmpeg.exe`.
+
+- FFmpeg is a separate project with its own license terms.
+- The binary was sourced from a public FFmpeg distribution (installed via Chocolatey in local setup).
+- You are responsible for verifying license obligations before redistributing binaries or derivative artifacts.
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for details and upstream references.
+
 ## Installation
 
 ```powershell

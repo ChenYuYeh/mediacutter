@@ -11,6 +11,19 @@ from pathlib import Path
 import ffmpeg
 
 
+def is_lfs_pointer(path: Path) -> bool:
+    """Detect whether a file is a Git LFS pointer text file."""
+    try:
+        if path.stat().st_size > 1024:
+            return False
+        first_line = path.read_text(encoding="utf-8", errors="ignore").splitlines()[:1]
+        if not first_line:
+            return False
+        return first_line[0].strip() == "version https://git-lfs.github.com/spec/v1"
+    except OSError:
+        return False
+
+
 def format_seconds(seconds: float) -> str:
     """Format seconds as hh:mm:ss."""
     total = max(0, int(seconds))
@@ -31,6 +44,14 @@ def parse_ffmpeg_out_time(out_time: str) -> float:
     frac = match.group(4) or "0"
     fraction = float(f"0.{frac}")
     return h * 3600 + m * 60 + s + fraction
+
+
+def parse_out_time_ms(value: str) -> float | None:
+    """Parse ffmpeg out_time_ms into seconds; return None for non-numeric values."""
+    try:
+        return max(0.0, int(value) / 1_000_000.0)
+    except (TypeError, ValueError):
+        return None
 
 
 def print_progress(processed: float, total: float, started_at: float) -> None:
@@ -123,11 +144,11 @@ def resolve_ffmpeg_binary() -> str:
     env_path = os.environ.get("MEDIACUTTER_FFMPEG")
     if env_path:
         candidate = Path(env_path).expanduser()
-        if candidate.exists():
+        if candidate.exists() and not is_lfs_pointer(candidate):
             return str(candidate)
 
     project_local = Path(__file__).resolve().parents[2] / "tools" / "ffmpeg" / "ffmpeg.exe"
-    if project_local.exists():
+    if project_local.exists() and not is_lfs_pointer(project_local):
         return str(project_local)
 
     ffmpeg_path = shutil.which("ffmpeg")
@@ -137,6 +158,20 @@ def resolve_ffmpeg_binary() -> str:
     raise RuntimeError(
         "ffmpeg binary was not found. Expected tools/ffmpeg/ffmpeg.exe or ffmpeg on PATH."
     )
+
+
+def build_output_kwargs(tv_compatible: bool) -> dict:
+    """Build ffmpeg output kwargs for default and TV-compatible modes."""
+    if not tv_compatible:
+        return {"c": "copy"}
+
+    # TV-friendly output: H.264 video + AAC audio in MP4 with faststart.
+    return {
+        "vcodec": "libx264",
+        "acodec": "aac",
+        "pix_fmt": "yuv420p",
+        "movflags": "+faststart",
+    }
 
 
 def run_ffmpeg_cut(
@@ -149,12 +184,7 @@ def run_ffmpeg_cut(
     line.  Outputs are overwritten if they already exist.
     """
     ffmpeg_cmd = resolve_ffmpeg_binary()
-    output_kwargs = {"c": "copy"}
-    if tv_compatible:
-        output_kwargs = {
-            "c": "copy",
-            "movflags": "+faststart",
-        }
+    output_kwargs = build_output_kwargs(tv_compatible)
     try:
         duration_seconds = float(timecode_to_seconds(end) - timecode_to_seconds(start))
         process = (
@@ -191,8 +221,9 @@ def run_ffmpeg_cut(
                     continue
                 key, value = line.split("=", 1)
                 if show_progress and key == "out_time_ms":
-                    processed = max(0.0, int(value) / 1_000_000.0)
-                    print_progress(processed, duration_seconds, started_at)
+                    processed = parse_out_time_ms(value)
+                    if processed is not None:
+                        print_progress(processed, duration_seconds, started_at)
                 elif show_progress and key == "progress" and value == "end":
                     print_progress(duration_seconds, duration_seconds, started_at)
 
@@ -209,6 +240,8 @@ def run_ffmpeg_cut(
         if getattr(e, "stderr", None):
             stderr = e.stderr.decode(errors="ignore")
         raise RuntimeError(f"ffmpeg failed: {stderr or e}")
+    except OSError as e:
+        raise RuntimeError(f"ffmpeg failed to launch: {e}")
 
 
 def main(argv=None):
